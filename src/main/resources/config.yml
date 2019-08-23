@@ -1,3 +1,14 @@
 Settings:
   MinRange: 16
   MaxRange: 32
+  Trigger:
+    #PreventFalseTriggering: when enabled, only when players look straight (pitch<-80°) up can chat mode be changed
+    PreventFalseTriggering: true
+    # MouseButton: supported value: left / right
+    MouseButton: left
+    # MaxClickInterval: as millisecond. 1s = 1000ms. default: 800
+    MaxClickInterval: 800
+    # Sneaking: default & suggested: true
+    Sneaking: true
+  Message:
+    TODO: 'customizable messages'

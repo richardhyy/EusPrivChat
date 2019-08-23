@@ -7,6 +7,7 @@ import com.comphenix.protocol.events.PacketAdapter;
 import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
 import com.comphenix.protocol.wrappers.WrappedChatComponent;
+import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -26,19 +27,25 @@ import java.util.Map;
 import java.util.UUID;
 
 public class PrivChat  extends JavaPlugin implements Listener {
-    static int config_MinRange;
-    static int config_MaxRange;
-    static int DistancePerExclamation;
+    static Integer config_MinRange;
+    static Integer config_MaxRange;
+    static Boolean config_Trigger_PreventFalseTriggering;
+    static String config_Trigger_MouseButton;
+    static Integer config_Trigger_MaxClickInterval;
+    static Material config_Trigger_ItemInMainHand;
+    static Boolean config_Trigger_Sneaking;
+    static Integer DistancePerExclamation;
 
     static final Integer MODE_GLOBAL = 0;
     static final Integer MODE_RANGE_ONLY = 1;
     static final Integer MODE_RANGE_GLOBAL_LISTENING = 2;
     static final Integer MODE_SILENT = 3;
 
+
     static final String MESSAGE_PREFIX = "§b< ";
 
-    Map<UUID, Long> UUIDTimeMap = new HashMap<UUID, Long>();
-    Map<UUID, Integer> UUIDModeMap = new HashMap<UUID, Integer>();
+    static Map<UUID, Long> UUIDTimeMap = new HashMap<UUID, Long>();
+    static Map<UUID, Integer> UUIDModeMap = new HashMap<UUID, Integer>();
 
     public static Plugin instance;
 
@@ -48,6 +55,7 @@ public class PrivChat  extends JavaPlugin implements Listener {
         loadConfig();
 
         Bukkit.getPluginManager().registerEvents(this,this);
+        Bukkit.getPluginCommand("chatmode").setExecutor(new PrivChatCommand());
 
         ProtocolLibrary.getProtocolManager().addPacketListener(
                 new PacketAdapter(this, ListenerPriority.NORMAL, PacketType.Play.Server.CHAT) {
@@ -115,6 +123,14 @@ public class PrivChat  extends JavaPlugin implements Listener {
         config_MinRange = instance.getConfig().getInt("Settings.MinRange",16);
         config_MaxRange = instance.getConfig().getInt("Settings.MaxRange",32);
 
+        config_Trigger_PreventFalseTriggering = instance.getConfig().getBoolean("Settings.Trigger.PreventFalseTriggering",true);
+        config_Trigger_MouseButton = instance.getConfig().getString("Settings.Trigger.MouseButton","left")=="right"?"right":"left";
+        config_Trigger_MaxClickInterval = instance.getConfig().getInt("Settings.Trigger.MaxClickInterval",800);
+        config_Trigger_ItemInMainHand = Material.getMaterial(instance.getConfig().getString("Settings.Trigger.ItemInMainHand","AIR"));
+        config_Trigger_Sneaking = instance.getConfig().getBoolean("Settings.Trigger.Sneaking",true);
+
+        if(config_Trigger_ItemInMainHand == null) config_Trigger_ItemInMainHand = Material.AIR;
+
         if (config_MinRange > config_MaxRange) {
             config_MinRange += config_MaxRange;
             config_MaxRange = config_MinRange - config_MaxRange;
@@ -131,6 +147,12 @@ public class PrivChat  extends JavaPlugin implements Listener {
         sendInfo("Min chatting range: " + config_MinRange);
         sendInfo("Max chatting range: " + config_MaxRange);
         sendInfo("Range Increasing : " + DistancePerExclamation + " / Exclamation Mark(!)");
+
+        sendInfo("Trigger > PreventFalseTriggering: " + (config_Trigger_PreventFalseTriggering?"enabled":"disabled"));
+        sendInfo("Trigger > MouseButton: " + config_Trigger_MouseButton);
+        sendInfo("Trigger > MaxClickInterval: " + config_Trigger_MaxClickInterval);
+        sendInfo("Trigger > ItemInMainHand: " + config_Trigger_ItemInMainHand.toString());
+        sendInfo("Trigger > Sneaking: " + (config_Trigger_Sneaking?"required":"optional"));
 
     }
 
@@ -164,22 +186,41 @@ public class PrivChat  extends JavaPlugin implements Listener {
     public void onPlayerInteract(PlayerInteractEvent e) {
         Player player = e.getPlayer();
 
-        if (player.getInventory().getItemInMainHand().getType() != Material.AIR) {
-            return;
+        if (config_Trigger_PreventFalseTriggering) {
+            // idea provided by Ghost_chu
+            if (!(player.getLocation().getPitch() < -80)) return;
         }
+
+        if (config_Trigger_Sneaking) {
+            if (!player.isSneaking()) return;
+        }
+
+        if (player.getInventory().getItemInMainHand().getType() != config_Trigger_ItemInMainHand) return;
+
+        if (config_Trigger_MouseButton == "left") {
+            if (e.getAction() != Action.LEFT_CLICK_AIR)
+                return;
+        }
+        else {
+            if (e.getAction() != Action.RIGHT_CLICK_AIR)
+                return;
+        }
+
         UUID uuid = getPlayerUUID(player);
         long currentTime = System.currentTimeMillis();
 
-        if (e.getAction() == Action.LEFT_CLICK_AIR) {
-            if (UUIDTimeMap.containsKey(uuid)) {
-                if (currentTime - UUIDTimeMap.get(uuid) < 1500) {
-                    changeChatMode(player);
-                    UUIDTimeMap.remove(uuid);
-                    return;
-                }
+        if (UUIDTimeMap.containsKey(uuid)) {
+            long lastTime = UUIDTimeMap.get(uuid);
+
+            if (lastTime == -1) return; // for the player has disabled the QuickChangeChatMode function
+
+            if (currentTime - lastTime < config_Trigger_MaxClickInterval) {
+                changeChatMode(player);
+                UUIDTimeMap.remove(uuid);
+                return;
             }
-            UUIDTimeMap.put(uuid,currentTime);
         }
+        UUIDTimeMap.put(uuid, currentTime);
     }
 
     @EventHandler
@@ -192,13 +233,13 @@ public class PrivChat  extends JavaPlugin implements Listener {
 
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent e) {
-        e.getPlayer().sendMessage(MESSAGE_PREFIX + "双击空气来切换聊天模式 >");
+        e.getPlayer().sendMessage(MESSAGE_PREFIX + "双击空气快速切换聊天模式 或使用 /chatmode 手动切换 >");
     }
 
 
     // MARK: - Helper methods
 
-    public void changeChatMode(Player player) {
+    public static void changeChatMode(Player player) {
         UUID uuid = getPlayerUUID(player);
         Integer mode = 0;
 
@@ -257,7 +298,7 @@ public class PrivChat  extends JavaPlugin implements Listener {
         }
     }
 
-    private static UUID getPlayerUUID(Player player) {
+    protected static UUID getPlayerUUID(Player player) {
         UUID uuid = player.getPlayerProfile().getId();
         if (uuid == null){
             uuid = UUID.fromString(player.getDisplayName());
