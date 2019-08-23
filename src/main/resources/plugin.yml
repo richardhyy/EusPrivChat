@@ -1,0 +1,12 @@
+name: EusPrivChat
+main: cc.eumc.PrivChat
+version: 1.0.17
+author: EucalyptusLeaves
+api-version: 1.13
+depend: [ProtocolLib]
+commands:
+  privchat:
+    description: Command for PrivChat whose function is reload the configuration
+permissions:
+  privchat.global:
+    description: Allows a player to send global messages

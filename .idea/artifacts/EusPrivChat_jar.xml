@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="EusPrivChat:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/EusPrivChat_jar</output-path>
+    <root id="archive" name="EusPrivChat.jar">
+      <element id="module-output" name="EusPrivChat" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/config.yml" />
+      <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/plugin.yml" />
+    </root>
+  </artifact>
+</component>
