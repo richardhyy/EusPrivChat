@@ -12,12 +12,10 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.AsyncPlayerChatEvent;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -35,6 +33,11 @@ public class PrivChat  extends JavaPlugin implements Listener {
     static Material config_Trigger_ItemInMainHand;
     static Boolean config_Trigger_Sneaking;
     static Integer DistancePerExclamation;
+
+    static boolean config_GlobalGhostMode_Enabled;
+    static String config_GlobalGhostMode_MessageTemplate;
+    static String config_GlobalGhostMode_Color_Default;
+    static String config_GlobalGhostMode_Color_OP;
 
     static final Integer MODE_GLOBAL = 0;
     static final Integer MODE_RANGE_ONLY = 1;
@@ -120,6 +123,14 @@ public class PrivChat  extends JavaPlugin implements Listener {
 
         instance.reloadConfig();
 
+        config_GlobalGhostMode_Enabled = instance.getConfig().getBoolean("Settings.GlobalGhostMode.Enabled", false);
+        if (config_GlobalGhostMode_Enabled) {
+            sendInfo("§6<!> GolbalGhostMode Enabled");
+            config_GlobalGhostMode_MessageTemplate = instance.getConfig().getString("Settings.GlobalGhostMode.MessageTemplate", "{color}{name} §f>§8>§7> §r{message}");
+            config_GlobalGhostMode_Color_Default =  instance.getConfig().getString("Settings.GlobalGhostMode.Color.Default", "§f");
+            config_GlobalGhostMode_Color_OP =  instance.getConfig().getString("Settings.GlobalGhostMode.Color.OP", "§c");
+        }
+
         config_MinRange = instance.getConfig().getInt("Settings.MinRange",16);
         config_MaxRange = instance.getConfig().getInt("Settings.MaxRange",32);
 
@@ -159,11 +170,11 @@ public class PrivChat  extends JavaPlugin implements Listener {
 
     // MARK: - Event Handlers
 
-    @EventHandler
-    public void onPlayerChat(AsyncPlayerChatEvent e) {
+    @EventHandler (ignoreCancelled = true, priority = EventPriority.LOWEST)
+    public void onPlayerChat(PlayerChatEvent e) {
         Player player = e.getPlayer();
         UUID uuid = getPlayerUUID(player);
-         ;
+
         if (!UUIDModeMap.containsKey(uuid)) {
             return;
         }
@@ -171,14 +182,16 @@ public class PrivChat  extends JavaPlugin implements Listener {
         Integer mode = UUIDModeMap.get(uuid);
 
         if (mode == MODE_SILENT) {
-            player.sendMessage(MESSAGE_PREFIX + "§e禅模式下无法发送消息, 双击空气切换模式 §b>");
             e.setCancelled(true);
-            return;
+            player.sendMessage(MESSAGE_PREFIX + "§e禅模式下无法发送消息, 双击空气切换模式 §b>");
         }
-
-        if (mode == MODE_RANGE_ONLY || mode == MODE_RANGE_GLOBAL_LISTENING) {
+        else if (mode == MODE_RANGE_ONLY || mode == MODE_RANGE_GLOBAL_LISTENING) {
             e.setCancelled(true);
             sendMessageRange(player, e.getMessage());
+        }
+        else if (config_GlobalGhostMode_Enabled) {
+            e.setCancelled(true);
+            sendMessageGlobal(player, e.getMessage());
         }
     }
 
@@ -234,6 +247,8 @@ public class PrivChat  extends JavaPlugin implements Listener {
     @EventHandler
     public void onPlayerJoin(PlayerJoinEvent e) {
         e.getPlayer().sendMessage(MESSAGE_PREFIX + "双击空气快速切换聊天模式 或使用 /chatmode 手动切换 >");
+        if (config_GlobalGhostMode_Enabled)
+            e.getPlayer().sendMessage(MESSAGE_PREFIX + "全局幽灵模式已启用，公开聊天内容不会被本服务器后台记录 >");
     }
 
 
@@ -295,6 +310,13 @@ public class PrivChat  extends JavaPlugin implements Listener {
                 }
             }
             player.sendActionBar("§3" + plrName + ": §b" + message);
+        }
+    }
+
+    public void sendMessageGlobal(Player player, String message) {
+        String msg = String.format(config_GlobalGhostMode_MessageTemplate, player.isOp()?config_GlobalGhostMode_Color_OP:config_GlobalGhostMode_Color_Default, player.getName(), message);
+        for (Player p : Bukkit.getServer().getOnlinePlayers()) {
+            p.sendMessage(msg);
         }
     }
 

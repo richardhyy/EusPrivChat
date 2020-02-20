@@ -1,4 +1,12 @@
 Settings:
+  #All chat messages will not be logged if enabled
+  GlobalGhostMode:
+    Enabled: true
+    # paras(%s): 1: format code;  2: player name;  3: message
+    MessageTemplate: '%s%s §f>§8>§7> §r%s'
+    Color:
+      Default: '§f'
+      OP: '§a'
   MinRange: 16
   MaxRange: 32
   Trigger:
