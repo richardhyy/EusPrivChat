@@ -4,10 +4,7 @@ import com.comphenix.protocol.PacketType;
 import com.comphenix.protocol.ProtocolLibrary;
 import com.comphenix.protocol.events.ListenerPriority;
 import com.comphenix.protocol.events.PacketAdapter;
-import com.comphenix.protocol.events.PacketContainer;
 import com.comphenix.protocol.events.PacketEvent;
-import com.comphenix.protocol.wrappers.WrappedChatComponent;
-import com.sun.org.apache.xpath.internal.operations.Bool;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -15,7 +12,10 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
-import org.bukkit.event.player.*;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerChatEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -303,7 +303,9 @@ public class PrivChat  extends JavaPlugin implements Listener {
 
             for (Player plr : players) {
                 if (canPlayerReceiveRangeMessage(plr)) {
-                    Integer distance = (int)plr.getLocation().distance(player.getLocation());
+                    if (!player.getWorld().equals(plr.getWorld())) continue;
+
+                    int distance = (int)plr.getLocation().distance(player.getLocation());
                     if (distance <= spreadDistance) {
                         plr.sendActionBar("§3" + plrName + ": §b" + message);
                     }
